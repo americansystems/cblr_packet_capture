@@ -5,19 +5,22 @@ param (
     [switch]$KeepOriginal = $false
 )
 
-$FileExists = Test-Path $OutFile
+$InFilePath = Convert-Path $InFile
+$OutFilePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathfromPSPath($OutFile)
+$FileExists = Test-Path $OutFilePath
+
 
 if ($FileExists -And $Overwrite) {
-    Remove-Item -path $OutFile
+    Remove-Item -path $OutFilePath
 } elseif ($FileExists -And !$Overwrite) {
     Write-Host "OutFile already exists. Set the -Overwrite flag to delete if exists. Quitting..."
     exit
 }
 
-$s = New-PefTraceSession -Path $OutFile -SaveOnStop
-$s | Add-PefMessageProvider -Provider $InFile
+$s = New-PefTraceSession -Path $OutFilePath -SaveOnStop
+$s | Add-PefMessageProvider -Provider $InFilePath
 $s | Start-PefTraceSession
 
 if (!$KeepOriginal) {
-    Remove-Item -path $InFile
+    Remove-Item -path $InFilePath
 }
