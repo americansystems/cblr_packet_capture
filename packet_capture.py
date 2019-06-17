@@ -1,27 +1,45 @@
 #!/usr/bin/env python3
 
 from cbapi.response import *
+from cbapi.psc.defense import *
 from argparse import ArgumentParser
 from time import sleep
 
 
-def process_hostname(cb, hostname):
+def get_cb_session(profile):
+    psc = 1
+    try:
+        cb = CbDefenseAPI(profile=profile)
+    except:
+        psc = 0
+        cb = CbResponseAPI(profile=profile)
+    return cb, psc
+
+
+def process_hostname(cb, hostname, psc):
 
     sensors = set()
     # Query Cb for sensor by hostname, add to sensors
-    sensors.add(cb.select(Sensor).where('hostname:'+hostname).first())
+    if psc:
+        sensors.add(cb.select(Device).where('hostName:'+hostname).first())
+    else:    
+        sensors.add(cb.select(Sensor).where('hostname:'+hostname).first())
     return sensors
 
 
-def process_hostname_file(cb, hostname_path):
+def process_hostname_file(cb, hostname_path, psc):
 
     # Read in hostnames from file
     with open(hostname_path) as h:
         hostnames = h.read().splitlines()
     sensors = set()
     # Query Cb for each sensor by hostname, add to sensors
-    for hostname in hostnames:
-        sensors.add(cb.select(Sensor).where('hostname:'+hostname).first())
+    if psc:
+        for hostname in hostnames:
+            sensors.add(cb.select(Device).where('hostName:'+hostname).first())
+    else:
+        for hostname in hostnames:
+            sensors.add(cb.select(Sensor).where('hostname:'+hostname).first())
     return sensors
 
 
@@ -50,6 +68,7 @@ def start_process(session, process, working_directory='C:\\Temp\\'):
 def start_capture(
     session,
     sensor,
+    comp_name,
     parent_directory,
     working_directory,
     file_name
@@ -66,7 +85,7 @@ def start_capture(
             parent_directory + working_directory + file_name + '.etl')
 
     # Print hostname and output for each host
-    print(str(sensor.computer_name)+':')
+    print(comp_name + ':')
 
     print(start_process(
         session,
@@ -113,13 +132,14 @@ def create_working_directory(session, parent_directory, working_directory):
 def cleanup_and_return(
     session,
     sensor,
+    comp_name,
     dir_exists,
     parent_directory,
     working_directory,
     file_name
 ):
 
-    with open(sensor.computer_name + file_name + '.etl', 'wb+') as n:
+    with open(comp_name + file_name + '.etl', 'wb+') as n:
         n.write(session.get_file(
             parent_directory + working_directory + file_name + '.etl'))
 
@@ -138,7 +158,7 @@ def cleanup_and_return(
         session.delete_file(parent_directory + working_directory)
 
 
-def capture_packets(hostname, hostname_path, capture_time):
+def capture_packets(hostname, hostname_path, profile, capture_time):
     """
     Captures packets from remote host, returns as etl file
     """
@@ -147,14 +167,22 @@ def capture_packets(hostname, hostname_path, capture_time):
     PARENT_DIRECTORY = 'C:\\'
     WORKING_DIRECTORY = 'Temp\\'
 
-    cb = CbResponseAPI()
+    cb, psc = get_cb_session(profile)
+
     if hostname:
-        sensors = process_hostname(cb, hostname)
+        sensors = process_hostname(cb, hostname, psc)
     else:
-        sensors = process_hostname_file(cb, hostname_path)
+        sensors = process_hostname_file(cb, hostname_path, psc)
 
     # Push scripts to each sensor, execute, then cleanup
     for sensor in sensors:
+
+        if psc:
+            comp_name = str(sensor.name)
+        else:
+            comp_name = str(sensor.computer_name)
+        comp_name = comp_name[comp_name.find("\\")+1:]
+
         # Establish Live Response session for the sensor
         with sensor.lr_session() as session:
 
@@ -166,6 +194,7 @@ def capture_packets(hostname, hostname_path, capture_time):
             start_capture(
                 session,
                 sensor,
+                comp_name,
                 PARENT_DIRECTORY,
                 WORKING_DIRECTORY,
                 FILE_NAME
@@ -186,6 +215,7 @@ def capture_packets(hostname, hostname_path, capture_time):
             cleanup_and_return(
                 session,
                 sensor,
+                comp_name,
                 dir_exists,
                 PARENT_DIRECTORY,
                 WORKING_DIRECTORY,
@@ -210,6 +240,11 @@ def main():
         default='hostnames'
     )
     parser.add_argument(
+        '--profile', '-p',
+        help='Provide the name of the cbapi profile to use',
+        default='default'
+    )
+    parser.add_argument(
         '--seconds', '-s',
         help='Provide time to run capture',
         default='60',
@@ -217,7 +252,7 @@ def main():
     )
     args = parser.parse_args()
 
-    capture_packets(args.hostname, args.hosts, args.seconds)
+    capture_packets(args.hostname, args.hosts, args.profile, args.seconds)
 
 if __name__ == '__main__':
     from sys import exit

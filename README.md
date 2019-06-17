@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Utility to capture packets remotely from a host and return.
+Utility to capture packets remotely from a host and return. Support is now added for using Live Response through the PSC or Response. Multi-profile support is now available.
 
 ## Getting Started
 
@@ -12,8 +12,8 @@ Utility to capture packets remotely from a host and return.
 4. Open the cloned directory (`cd cblr_packet_capture`)
 5. Run `pipenv install`
 6. Run `pipenv shell`
-7. Add authentication token for CbAPI (run `cbapi-response configure` or see below)
-8. Run `./packet_capture.py [-s SECONDS] --hostname HOSTNAME`
+7. Add authentication token for CbAPI (see Authenticating section below)
+8. Run `./packet_capture.py [-s SECONDS] [--profile PROFILE] --hostname HOSTNAME`
 
 ## Using the Cap Converter
 
@@ -28,14 +28,32 @@ Flags:
 
 ## Authenticating
 
+### Response
+
+After entering the virtual environment (step 6 from Getting Started), run `cbapi-response configure` and enter the requested information.
+
 If running `cbapi-response configure` does not work, you can manually create a credentials.response file at ~/.carbonblack/
 Your credentials file is a flat text file conforming to INI format. Here is an example:
 
 ```INI
 [default]
-url=https://<your-server-url>
-token=<api-token-goes-here>
-ssl_verify=True
+url = https://<your-server-url>
+token = <api-token-goes-here>
+ssl_verify = True
+```
+
+### PSC
+
+After entering the virtual environment (step 6 from Getting Started), run `cbapi-defense configure`. Then, copy the created file from `~/.carbonblack/credentials.defense` to `~/.carbonblack/credentials.psc`.
+
+If the above steps don't work, you can manually reated a credentials.psc file at ~/.carbonblack/
+Your credentials file is a flat text file conforming to INI format. Here is an example:
+
+```INI
+[default]
+url = https://api-prod05.conferdeploy.net
+token = <API-KEY>/<API-ID>
+ssl_verify = True
 ```
 
 ## Contribute
