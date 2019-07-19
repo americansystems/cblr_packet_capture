@@ -21,8 +21,15 @@ def process_hostname(cb, hostname, psc):
     sensors = set()
     # Query Cb for sensor by hostname, add to sensors
     if psc:
-        sensors.add(cb.select(Device).where('hostName:'+hostname).first())
-    else:    
+        try:
+            sensors.add(
+                cb.select(Device).where('hostNameExact:'+hostname).first()
+            )
+        except:
+            sensors.add(
+                cb.select(Device).where('hostName:'+hostname).first()
+            )
+    else:
         sensors.add(cb.select(Sensor).where('hostname:'+hostname).first())
     return sensors
 
